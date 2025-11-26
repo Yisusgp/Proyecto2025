@@ -351,11 +351,11 @@ export function AdminDashboard({
             ) : (
               <div className="space-y-4">
                 
-                {filteredReservations.map((registro) => ( //Usamos 'registro'
+                {filteredReservations.map((registro) => ( 
                   <div
-                    key={registro.ID_Registro} // Usamos ID_Registro (number)
+                    key={registro.ID_Registro} 
                     className="p-4 border rounded-lg bg-white hover:bg-gray-50 transition-colors"
-                  >
+                    >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">

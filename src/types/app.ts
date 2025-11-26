@@ -70,7 +70,7 @@ export interface RegistroUso {
  * Se usa principalmente para mapear el nombre del formulario al ID_Espacio de la DB.
  */
 export interface EspacioMapeo {
-  ID_Espacio: number;
+  Id_Espacio: number;
   Nombre: string; // Nombre del espacio (ej: 'Laboratorio 101')
   Tipo_Espacio: string; // Tipo_Espacio (ej: 'Laboratorio', 'Aula')
 }

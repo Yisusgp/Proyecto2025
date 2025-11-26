@@ -52,7 +52,7 @@ interface ReservationDashboardProps {
   onLogout: () => void;
   //Función asíncrona que retorna éxito/error y espera RegistroUso
   onCreateReservation: (
-    reservation: Omit<RegistroUso, "ID_Registro" | "Estado_Final">,
+    reservation: Omit<RegistroUso, "Id_Registro" | "Estado_Final">,
   ) => Promise<{ success: boolean; error?: string }>;
   reservations: RegistroUso[]; //Usamos RegistroUso
   onDeleteReservation: (id: number) => void; //ID de Registro es un número
@@ -80,7 +80,7 @@ export function ReservationDashboard({
   // Función auxiliar para mapear el nombre del espacio al ID de la DB
   const getSpaceIdByName = (spaceName: string): number | null => {
     const espacio = espacios.find(e => e.Nombre.toLowerCase() === spaceName.toLowerCase());
-    return espacio ? espacio.ID_Espacio : null;
+    return espacio ? espacio.Id_Espacio : null;
   };
 
 
@@ -117,9 +117,9 @@ export function ReservationDashboard({
     
     // Llamada al servidor (RPC/Trigger)
     const result = await onCreateReservation({
-      ID_Usuario: user.id, // ID_Usuario del perfil cargado
-      ID_Espacio: spaceId,
-      ID_Curso: null, // Asumimos null si no hay selector de curso
+      Id_Usuario: user.id, // Id_Curso del perfil cargado
+      Id_Espacio: spaceId,
+      Id_Curso: null, // Asumimos null si no hay selector de curso
       Fecha_Hora_Inicio: formattedDateTimeStart,
       Fecha_Hora_Fin: formattedDateTimeEnd,
       Proposito: description,
@@ -321,7 +321,7 @@ export function ReservationDashboard({
                     <SelectContent>
                       {/*Mapeamos las opciones disponibles de la DB */}
                       {espacios.map((e) => (
-                        <SelectItem key={e.ID_Espacio} value={e.Nombre}>
+                        <SelectItem key={e.Id_Espacio} value={e.Nombre}>
                             {e.Nombre} ({e.Tipo_Espacio})
                         </SelectItem>
                       ))}
@@ -365,23 +365,23 @@ export function ReservationDashboard({
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {reservations.map((registro) => ( // Usamos 'registro' en lugar de 'reservation'
+                {reservations.map((Registro) => ( // Usamos 'registro' en lugar de 'reservation'
                   <div
-                    key={registro.ID_Registro} // ⬅️ Usamos ID_Registro
+                    key={Registro.ID_Registro} // ⬅️ Usamos ID_Registro
                     className="p-4 border rounded-lg bg-white"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           <h3 className="text-gray-900 capitalize">
-                            {registro.Nombre_Espacio || registro.ID_Espacio}
+                            {Registro.Nombre_Espacio || Registro.ID_Espacio}
                           </h3>
-                          {getStatusBadge(registro.Estado_Final)}
+                          {getStatusBadge(Registro.Estado_Final)}
                         </div>
                         <div className="space-y-1 text-sm text-gray-600">
                           <p>
                             📅{" "}
-                            {new Date(registro.Fecha_Hora_Inicio).toLocaleDateString(
+                            {new Date(Registro.Fecha_Hora_Inicio).toLocaleDateString(
                               "es-ES",
                               {
                                 weekday: "long",
@@ -392,25 +392,25 @@ export function ReservationDashboard({
                             )}
                           </p>
                           <p>
-                            🕐 {new Date(registro.Fecha_Hora_Inicio).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(registro.Fecha_Hora_Fin).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            🕐 {new Date(Registro.Fecha_Hora_Inicio).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(Registro.Fecha_Hora_Fin).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </p>
                           <p className="mt-2">
                             <strong>Propósito:</strong>{" "}
-                            {registro.Proposito}
+                            {Registro.Proposito}
                           </p>
                         </div>
-                        {registro.Estado_Final === "Rechazado" &&
-                          registro.Observaciones && (
+                        {Registro.Estado_Final === "Rechazado" &&
+                          Registro.Observaciones && (
                             <div className="mt-3 p-3 bg-red-50 rounded-md">
                               <p className="text-sm text-red-700">
                                 <strong>Motivo de rechazo:</strong>{" "}
-                                {registro.Observaciones}
+                                {Registro.Observaciones}
                               </p>
                             </div>
                           )}
 
-                        {registro.Estado_Final === "Cancelado" &&
-                          registro.Observaciones && (
+                        {Registro.Estado_Final === "Cancelado" &&
+                          Registro.Observaciones && (
                             <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-md">
                               <div className="flex items-start gap-2">
                                 <AlertTriangle className="w-4 h-4 text-orange-700 mt-0.5 flex-shrink-0" />
@@ -419,7 +419,7 @@ export function ReservationDashboard({
                                     Cancelación por Emergencia
                                   </p>
                                   <p className="text-sm text-orange-700">
-                                    {registro.Observaciones}
+                                    {Registro.Observaciones}
                                   </p>
                                 </div>
                               </div>
@@ -428,25 +428,25 @@ export function ReservationDashboard({
                       </div>
 
                       <div className="flex items-start">
-                        {registro.Estado_Final !== "Cancelado" && (
+                        {Registro.Estado_Final !== "Cancelado" && (
                           <Button
                             size="sm"
                             variant="outline"
                             className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            onClick={() => handleDeleteClick(registro.ID_Registro)} // ⬅️ Pasamos ID_Registro
+                            onClick={() => handleDeleteClick(Registro.ID_Registro)} // ⬅️ Pasamos ID_Registro
                           >
                             <Trash2 className="w-4 h-4 mr-1" />
-                            {registro.Estado_Final === "Rechazado" || registro.Estado_Final === "Realizado"
+                            {Registro.Estado_Final === "Rechazado" || Registro.Estado_Final === "Realizado"
                               ? "Eliminar"
                               : "Cancelar"}
                           </Button>
                         )}
-                        {registro.Estado_Final === "Cancelado" && (
+                        {Registro.Estado_Final === "Cancelado" && (
                           <Button
                             size="sm"
                             variant="outline"
                             className="text-gray-600 hover:text-gray-700 hover:bg-gray-50"
-                            onClick={() => handleDeleteClick(registro.ID_Registro)}
+                            onClick={() => handleDeleteClick(Registro.ID_Registro)}
                           >
                             <Trash2 className="w-4 h-4 mr-1" />
                             Eliminar del Historial

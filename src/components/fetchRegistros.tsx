@@ -1,7 +1,9 @@
 import { supabase } from "@/lib/supabase";
 import { RegistroUso, UserProfile } from "@/types/app";
 
-export const fetchRegistros = async (user: UserProfile): Promise<RegistroUso[]> => {
+export const fetchRegistros = async (
+  user: UserProfile,
+): Promise<RegistroUso[]> => {
   try {
     let query = supabase
       .from("Registro_Uso")
@@ -15,13 +17,11 @@ export const fetchRegistros = async (user: UserProfile): Promise<RegistroUso[]> 
         Estado_Final,
         Proposito,
         Observaciones,
-
         Espacio (
           Nombre,
           Ubicacion,
           Tipo_Espacio
         ),
-
         Usuario (
           Nombre,
           Apellido
@@ -29,7 +29,6 @@ export const fetchRegistros = async (user: UserProfile): Promise<RegistroUso[]> 
       `)
       .order("Fecha_Hora_Inicio", { ascending: false });
 
-    // 🔒 Si NO es admin, solo ve sus propios registros
     if (user.role !== "admin") {
       query = query.eq("Id_Usuario", user.id);
     }
@@ -41,13 +40,13 @@ export const fetchRegistros = async (user: UserProfile): Promise<RegistroUso[]> 
       return [];
     }
 
-    // 🛠 Normalización de datos
+    // 🛠 Normalización de datos con nombres correctos:
     return (data || []).map((r: any) => ({
+      // Con nombres exactos que esperan tus componentes/types:
       ID_Registro: r.Id_Registro,
       ID_Usuario: r.Id_Usuario,
       ID_Espacio: r.Id_Espacio,
       ID_Curso: r.Id_Curso,
-
       Fecha_Hora_Inicio: r.Fecha_Hora_Inicio,
       Fecha_Hora_Fin: r.Fecha_Hora_Fin,
       Estado_Final: r.Estado_Final,
@@ -60,10 +59,9 @@ export const fetchRegistros = async (user: UserProfile): Promise<RegistroUso[]> 
       Tipo_Espacio: r.Espacio?.Tipo_Espacio ?? null,
 
       // Relaciones — Usuario
-      Nombre_Usuario:
-        r.Usuario
-          ? `${r.Usuario.Nombre} ${r.Usuario.Apellido}`
-          : null,
+      Nombre_Usuario: r.Usuario
+        ? `${r.Usuario.Nombre} ${r.Usuario.Apellido}`
+        : null,
     }));
   } catch (err) {
     console.error("Excepción inesperada:", err);
