@@ -139,7 +139,7 @@ export function AdminDashboard({
           <p className="font-medium">Registro Cancelado por Emergencia</p>
           <p className="text-sm opacity-90 mt-1 flex items-center gap-1">
             <Mail className="w-3 h-3" />
-            Registro ID: {registro?.ID_Registro} Cancelado.
+            Registro ID: {registro?.ID_Registro} | Motivo: {cancellationReason}
           </p>
         </div>
       </div>,
