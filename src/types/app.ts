@@ -48,6 +48,7 @@ export interface UserProfile {
  * aunque los datos de la DB usen snake_case/PascalCase en SQL.
  */
 export interface RegistroUso {
+  correo_electronico: string;
   Nombre_Usuario: string;
   ID_Registro: number;
   ID_Usuario: number;
