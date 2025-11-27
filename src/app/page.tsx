@@ -224,28 +224,32 @@ export default function App() {
     }
   };
 
-  const handleDeleteReservation = async (idRegistro: number) => {
-    try {
-      const { error } = await supabase
-        .from("registro_uso")
-        .delete()
-        .eq("id_registro", idRegistro);
+  
+const handleDeleteReservation = async (idRegistro: number, reason?: string) => {
+  try {
+    const { error } = await supabase
+      .from("registro_uso")
+      .update({
+        estado_final: "Cancelado",
+        observaciones: reason || "Cancelación por el usuario",
+      })
+      .eq("id_registro", idRegistro);
 
-      if (error) {
-        toast.error(`Error al eliminar: ${error.message}`);
-        return;
-      }
-
-      if (user) {
-        const updatedRegistros = await fetchRegistros(user);
-        setRegistros(updatedRegistros);
-        toast.success("Registro eliminado del historial.");
-      }
-    } catch (err) {
-      console.error("Error en handleDeleteReservation:", err);
-      toast.error("Error desconocido al eliminar.");
+    if (error) {
+      toast.error(`Error al cancelar: ${error.message}`);
+      return;
     }
-  };
+
+    if (user) {
+      const updatedRegistros = await fetchRegistros(user);
+      setRegistros(updatedRegistros);
+      toast.success("Registro cancelado exitosamente.");
+    }
+  } catch (err) {
+    console.error("Error en handleDeleteReservation:", err);
+    toast.error("Error desconocido al cancelar.");
+  }
+};
 
   if (loading) {
     return (
