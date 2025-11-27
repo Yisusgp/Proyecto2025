@@ -40,23 +40,19 @@ import {
   AlertCircle,
   Trash2,
   AlertTriangle,
-  ImportIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-//Importamos los tipos reales de la base de datos
-import { UserProfile, RegistroUso, EspacioMapeo, RegistroUsoStatus } from "@/types/app"; 
-
+import { UserProfile, RegistroUso, EspacioMapeo, RegistroUsoStatus } from "@/types/app";
 
 interface ReservationDashboardProps {
-  user: UserProfile; //Usamos UserProfile
+  user: UserProfile;
   onLogout: () => void;
-  //Función asíncrona que retorna éxito/error y espera RegistroUso
   onCreateReservation: (
-    reservation: Omit<RegistroUso, "Id_Registro" | "Estado_Final">,
+    reservation: Omit<RegistroUso, "ID_Registro" | "Estado_Final">,
   ) => Promise<{ success: boolean; error?: string }>;
-  reservations: RegistroUso[]; //Usamos RegistroUso
-  onDeleteReservation: (id: number) => void; //ID de Registro es un número
-  espacios: EspacioMapeo[]; //Nuevo prop para mapeo de IDs
+  reservations: RegistroUso[];
+  onDeleteReservation: (id: number) => void;
+  espacios: EspacioMapeo[];
 }
 
 export function ReservationDashboard({
@@ -65,24 +61,23 @@ export function ReservationDashboard({
   onCreateReservation,
   reservations,
   onDeleteReservation,
-  espacios, // Desestructuramos el nuevo prop
+  espacios,
 }: ReservationDashboardProps) {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
-  const [space, setSpace] = useState(""); // Este es el NOMBRE del espacio (ej. 'salon')
+  const [space, setSpace] = useState("");
   const [description, setDescription] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [selectedReservationId, setSelectedReservationId] = useState<
-    number | null // ⬅️ Ahora usamos number para el ID de Registro
-  >(null);
-  
-  // Función auxiliar para mapear el nombre del espacio al ID de la DB
+  const [selectedReservationId, setSelectedReservationId] = useState<number | null>(null);
+
+  // Mapear nombre del espacio a ID
   const getSpaceIdByName = (spaceName: string): number | null => {
-    const espacio = espacios.find(e => e.Nombre.toLowerCase() === spaceName.toLowerCase());
+    const espacio = espacios.find(
+      (e) => e.Nombre.toLowerCase() === spaceName.toLowerCase(),
+    );
     return espacio ? espacio.Id_Espacio : null;
   };
-
 
   const handleReservation = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,110 +87,91 @@ export function ReservationDashboard({
       return;
     }
 
-    // Validación de Horario Operacional (8:00 AM a 8:00 PM)
     if (startTime < "08:00" || endTime > "20:00") {
-        toast.error("Las reservas solo están permitidas entre 08:00 y 20:00.");
-        return;
+      toast.error("Las reservas solo están permitidas entre 08:00 y 20:00.");
+      return;
     }
-    
-    // Validación de Hora (fin debe ser posterior a inicio)
+
     if (endTime <= startTime) {
       toast.error("La hora de fin debe ser posterior a la hora de inicio");
       return;
     }
-    
-    // Mapeo de valores de UI a DB (TIMESTAMP y ID)
-    const formattedDate = date.toISOString().split("T")[0]; // Ej: "2025-11-01"
-    const formattedDateTimeStart = `${formattedDate} ${startTime}:00`; // Ej: "2025-11-01 10:00:00"
-    const formattedDateTimeEnd = `${formattedDate} ${endTime}:00`;
+
+    const formattedDate = date.toISOString().split("T")[0];
+    const formattedDateTimeStart = `${formattedDate}T${startTime}:00`;
+    const formattedDateTimeEnd = `${formattedDate}T${endTime}:00`;
 
     const spaceId = getSpaceIdByName(space);
     if (spaceId === null) {
-        toast.error("Tipo de espacio no válido o no encontrado.");
-        return;
+      toast.error("Tipo de espacio no válido o no encontrado.");
+      return;
     }
-    
-    // Llamada al servidor (RPC/Trigger)
+
     const result = await onCreateReservation({
-      Id_Usuario: user.id, // Id_Curso del perfil cargado
-      Id_Espacio: spaceId,
-      Id_Curso: null, // Asumimos null si no hay selector de curso
+      ID_Usuario: user.id,
+      ID_Espacio: spaceId,
+      ID_Curso: null,
       Fecha_Hora_Inicio: formattedDateTimeStart,
       Fecha_Hora_Fin: formattedDateTimeEnd,
       Proposito: description,
-      // No incluimos Estado_Final ni ID_Registro, el servidor los asigna.
+      Observaciones: null,
     });
 
     if (!result.success) {
-        // Captura el error del TRIGGER de Supabase
-        toast.error(result.error || "Conflicto de reserva o error desconocido.");
-        return;
+      toast.error(result.error || "Conflicto de reserva o error desconocido.");
+      return;
     }
-    
+
     toast.success(
       "Reserva enviada. Pendiente de aprobación del administrador.",
     );
 
-    // Limpiar formulario
     setStartTime("");
     setEndTime("");
     setSpace("");
     setDescription("");
   };
 
-  const handleDeleteClick = (id: number) => { // Recibe number
+  const handleDeleteClick = (id: number) => {
     setSelectedReservationId(id);
     setDeleteDialogOpen(true);
   };
 
   const handleDeleteConfirm = () => {
     if (selectedReservationId !== null) {
-      // Llamada a la función de eliminación de Supabase
-      onDeleteReservation(selectedReservationId); 
+      onDeleteReservation(selectedReservationId);
       toast.success("Reserva eliminada exitosamente");
       setDeleteDialogOpen(false);
       setSelectedReservationId(null);
     }
   };
 
-  const getStatusBadge = (status: RegistroUsoStatus) => { // ⬅️ Usamos RegistroUsoStatus
+  const getStatusBadge = (status: RegistroUsoStatus) => {
     switch (status) {
       case "Pendiente":
         return (
-          <Badge
-            variant="outline"
-            className="bg-yellow-50 text-yellow-700 border-yellow-200"
-          >
+          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
             <AlertCircle className="w-3 h-3 mr-1" />
             Pendiente
           </Badge>
         );
       case "Confirmado":
         return (
-          <Badge
-            variant="outline"
-            className="bg-green-50 text-green-700 border-green-200"
-          >
+          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
             <CheckCircle2 className="w-3 h-3 mr-1" />
             Aprobada
           </Badge>
         );
-      case "Rechazado": // ⬅️ Usamos el valor de la DB
+      case "Rechazado":
         return (
-          <Badge
-            variant="outline"
-            className="bg-red-50 text-red-700 border-red-200"
-          >
+          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
             <XCircle className="w-3 h-3 mr-1" />
             Rechazada
           </Badge>
         );
-      case "Cancelado": // ⬅️ Usamos el valor de la DB
+      case "Cancelado":
         return (
-          <Badge
-            variant="outline"
-            className="bg-orange-50 text-orange-700 border-orange-200"
-          >
+          <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
             <AlertTriangle className="w-3 h-3 mr-1" />
             Cancelada
           </Badge>
@@ -271,10 +247,7 @@ export function ReservationDashboard({
                 {/* Time Inputs */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label
-                      htmlFor="startTime"
-                      className="flex items-center gap-2"
-                    >
+                    <Label htmlFor="startTime" className="flex items-center gap-2">
                       <Clock className="w-4 h-4" />
                       Hora de Inicio (08:00 - 20:00)
                     </Label>
@@ -284,15 +257,12 @@ export function ReservationDashboard({
                       value={startTime}
                       onChange={(e) => setStartTime(e.target.value)}
                       required
-                      min="08:00" 
+                      min="08:00"
                       max="20:00"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label
-                      htmlFor="endTime"
-                      className="flex items-center gap-2"
-                    >
+                    <Label htmlFor="endTime" className="flex items-center gap-2">
                       <Clock className="w-4 h-4" />
                       Hora de Fin (08:00 - 20:00)
                     </Label>
@@ -302,7 +272,7 @@ export function ReservationDashboard({
                       value={endTime}
                       onChange={(e) => setEndTime(e.target.value)}
                       required
-                      min="08:00" 
+                      min="08:00"
                       max="20:00"
                     />
                   </div>
@@ -319,14 +289,20 @@ export function ReservationDashboard({
                       <SelectValue placeholder="Selecciona un espacio" />
                     </SelectTrigger>
                     <SelectContent>
-                      {/*Mapeamos las opciones disponibles de la DB */}
-                      {espacios.map((e) => (
-                        <SelectItem key={e.Id_Espacio} value={e.Nombre}>
-                            {e.Nombre} ({e.Tipo_Espacio})
+                      {espacios && espacios.length > 0 ? (
+                        espacios.map((espacio) => (
+                          <SelectItem
+                            key={`espacio-${espacio.Id_Espacio}`}
+                            value={espacio.Nombre}
+                          >
+                            {espacio.Nombre} ({espacio.Tipo_Espacio})
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="" disabled>
+                          Cargando espacios...
                         </SelectItem>
-                      ))}
-                      {/* Si el mapeo de espacios está vacío, se podría mostrar un mensaje aquí */}
-                      {espacios.length === 0 && <SelectItem value="" disabled>Cargando espacios...</SelectItem>}
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -365,52 +341,63 @@ export function ReservationDashboard({
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {reservations.map((Registro) => ( // Usamos 'registro' en lugar de 'reservation'
+                {reservations.map((registro, idx) => (
                   <div
-                    key={Registro.ID_Registro} // ⬅️ Usamos ID_Registro
+                    key={registro.ID_Registro ?? `registro-${idx}`}
                     className="p-4 border rounded-lg bg-white"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           <h3 className="text-gray-900 capitalize">
-                            {Registro.Nombre_Espacio || Registro.ID_Espacio}
+                            {registro.Nombre_Espacio || `Espacio ${registro.ID_Espacio}`}
                           </h3>
-                          {getStatusBadge(Registro.Estado_Final)}
+                          {getStatusBadge(registro.Estado_Final)}
                         </div>
                         <div className="space-y-1 text-sm text-gray-600">
                           <p>
                             📅{" "}
-                            {new Date(Registro.Fecha_Hora_Inicio).toLocaleDateString(
-                              "es-ES",
-                              {
-                                weekday: "long",
-                                year: "numeric",
-                                month: "long",
-                                day: "numeric",
-                              },
-                            )}
+                            {new Date(
+                              registro.Fecha_Hora_Inicio,
+                            ).toLocaleDateString("es-ES", {
+                              weekday: "long",
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            })}
                           </p>
                           <p>
-                            🕐 {new Date(Registro.Fecha_Hora_Inicio).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(Registro.Fecha_Hora_Fin).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            🕐{" "}
+                            {new Date(
+                              registro.Fecha_Hora_Inicio,
+                            ).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}{" "}
+                            -{" "}
+                            {new Date(
+                              registro.Fecha_Hora_Fin,
+                            ).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
                           </p>
                           <p className="mt-2">
-                            <strong>Propósito:</strong>{" "}
-                            {Registro.Proposito}
+                            <strong>Propósito:</strong> {registro.Proposito}
                           </p>
                         </div>
-                        {Registro.Estado_Final === "Rechazado" &&
-                          Registro.Observaciones && (
+                        {registro.Estado_Final === "Rechazado" &&
+                          registro.Observaciones && (
                             <div className="mt-3 p-3 bg-red-50 rounded-md">
                               <p className="text-sm text-red-700">
                                 <strong>Motivo de rechazo:</strong>{" "}
-                                {Registro.Observaciones}
+                                {registro.Observaciones}
                               </p>
                             </div>
                           )}
 
-                        {Registro.Estado_Final === "Cancelado" &&
-                          Registro.Observaciones && (
+                        {registro.Estado_Final === "Cancelado" &&
+                          registro.Observaciones && (
                             <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-md">
                               <div className="flex items-start gap-2">
                                 <AlertTriangle className="w-4 h-4 text-orange-700 mt-0.5 flex-shrink-0" />
@@ -419,7 +406,7 @@ export function ReservationDashboard({
                                     Cancelación por Emergencia
                                   </p>
                                   <p className="text-sm text-orange-700">
-                                    {Registro.Observaciones}
+                                    {registro.Observaciones}
                                   </p>
                                 </div>
                               </div>
@@ -428,25 +415,30 @@ export function ReservationDashboard({
                       </div>
 
                       <div className="flex items-start">
-                        {Registro.Estado_Final !== "Cancelado" && (
+                        {registro.Estado_Final !== "Cancelado" && (
                           <Button
                             size="sm"
                             variant="outline"
                             className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            onClick={() => handleDeleteClick(Registro.ID_Registro)} // ⬅️ Pasamos ID_Registro
+                            onClick={() =>
+                              handleDeleteClick(registro.ID_Registro)
+                            }
                           >
                             <Trash2 className="w-4 h-4 mr-1" />
-                            {Registro.Estado_Final === "Rechazado" || Registro.Estado_Final === "Realizado"
+                            {registro.Estado_Final === "Rechazado" ||
+                            registro.Estado_Final === "Realizado"
                               ? "Eliminar"
                               : "Cancelar"}
                           </Button>
                         )}
-                        {Registro.Estado_Final === "Cancelado" && (
+                        {registro.Estado_Final === "Cancelado" && (
                           <Button
                             size="sm"
                             variant="outline"
                             className="text-gray-600 hover:text-gray-700 hover:bg-gray-50"
-                            onClick={() => handleDeleteClick(Registro.ID_Registro)}
+                            onClick={() =>
+                              handleDeleteClick(registro.ID_Registro)
+                            }
                           >
                             <Trash2 className="w-4 h-4 mr-1" />
                             Eliminar del Historial
@@ -468,12 +460,14 @@ export function ReservationDashboard({
           </CardHeader>
           <CardContent>
             <ul className="space-y-2 text-gray-600">
-              <li>• Las reservas deben ser aprobadas por un administrador</li>
+              <li>
+                • Las reservas deben ser aprobadas por un administrador
+              </li>
               <li>
                 • Recibirás una notificación cuando tu reserva sea procesada
               </li>
               <li>• Puedes cancelar tus reservas en cualquier momento</li>
-              <li>• El horario de atencion es de 8:00 AM a 8:00 PM</li>
+              <li>• El horario de atención es de 8:00 AM a 8:00 PM</li>
             </ul>
           </CardContent>
         </Card>

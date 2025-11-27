@@ -12,94 +12,71 @@ import {
   EspacioMapeo,
   RegistroUsoStatus,
 } from "@/types/app";
+import { fetchRegistros } from "@/components/fetchRegistros";
 
+// Perfil + rol
 const fetchProfileAndRole = async (
   authUserId: string,
 ): Promise<UserProfile | null> => {
   const { data: userData, error: userError } = await supabase
-    .from("Usuario")
-    .select("Id_Usuario, Nombre, Apellido, Correo_Electronico")
-    .eq("Auth_Uuid", authUserId)
+    .from("usuario")
+    .select("id_usuario, nombre, apellido, correo_electronico")
+    .eq("auth_uuid", authUserId)
     .single();
 
   if (userError || !userData) {
-    console.error("Error al cargar USUARIO:", JSON.stringify(userError, null, 2));
+    console.error(
+      "Error al cargar USUARIO:",
+      JSON.stringify(userError, null, 2),
+    );
     return null;
   }
 
   let role: UserProfile["role"] = "guest";
 
   const checks = [
-    { table: "Administrador", role: "admin" },
-    { table: "Profesor", role: "profesor" },
-    { table: "Estudiante", role: "estudiante" },
+    { table: "administrador", role: "admin" as const },
+    { table: "profesor", role: "profesor" as const },
+    { table: "estudiante", role: "estudiante" as const },
   ];
 
   for (const check of checks) {
     const { count } = await supabase
       .from(check.table)
       .select("*", { count: "exact", head: true })
-      .eq("Id_Usuario", userData.Id_Usuario);
+      .eq("id_usuario", userData.id_usuario);
 
     if (count && count > 0) {
-      role = check.role as UserProfile["role"];
+      role = check.role;
       break;
     }
   }
 
   return {
-    id: userData.Id_Usuario,
+    id: userData.id_usuario,
     authId: authUserId,
-    name: `${userData.Nombre} ${userData.Apellido}`,
-    email: userData.Correo_Electronico,
+    name: `${userData.nombre} ${userData.apellido}`,
+    email: userData.correo_electronico,
     role,
   };
 };
 
+// Espacios
 const fetchEspacios = async (): Promise<EspacioMapeo[]> => {
   const { data, error } = await supabase
-    .from("Espacio")
-    .select("Id_Espacio, Nombre, Tipo_Espacio");
+    .from("espacio")
+    .select("id_espacio, nombre, tipo_espacio");
 
   if (error) {
-    toast.error("Error al cargar la lista de espacios.");
+    console.error("Error al cargar espacios:", error);
     return [];
   }
 
   return (data || []).map((item: any) => ({
-    Id_Espacio: item.Id_Espacio,
-    Nombre: item.Nombre,
-    Tipo_Espacio: item.Tipo_Espacio,
+    Id_Espacio: item.id_espacio,
+    Nombre: item.nombre,
+    Tipo_Espacio: item.tipo_espacio,
   }));
-};
-
-const fetchRegistros = async (userProfile: UserProfile): Promise<RegistroUso[]> => {
-  let query = supabase
-    .from("Registro_Uso")
-    .select(
-      `
-      *,
-      Espacio (Nombre, Ubicacion)
-    `,
-    )
-    .order("Fecha_Hora_Inicio", { ascending: false });
-
-  if (userProfile.role !== "admin") {
-    query = query.eq("Id_Usuario", userProfile.id);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    toast.error("Error al cargar registros: " + error.message);
-    return [];
-  }
-
-  return data.map((r: any) => ({
-    ...r,
-    Nombre_Espacio: r.Espacio?.Nombre || "Espacio no disponible",
-    Ubicacion_Espacio: r.Espacio?.Ubicacion || "Ubicación no disponible",
-  })) as RegistroUso[];
 };
 
 export default function App() {
@@ -139,7 +116,7 @@ export default function App() {
     loadApp();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      (event) => {
         if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
           loadApp();
         }
@@ -163,44 +140,58 @@ export default function App() {
   };
 
   const handleCreateReservation = async (
-    reservationData: Omit<RegistroUso, "Id_Registro" | "Estado_Final">,
-  ): Promise<{ success: boolean; error?: string | undefined }> => {
-    const { error } = await supabase.rpc("check_and_create_registro", {
-      p_Id_Usuario: reservationData.ID_Usuario,
-      p_id_espacio: reservationData.ID_Espacio,
-      p_id_curso: reservationData.ID_Curso,
-      p_fecha_hora_inicio: reservationData.Fecha_Hora_Inicio,
-      p_fecha_hora_fin: reservationData.Fecha_Hora_Fin,
-      p_proposito: reservationData.Proposito,
-    });
+    reservationData: Omit<RegistroUso, "Estado_Final" | "ID_Registro">,
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const { error } = await supabase.rpc("check_and_create_registro", {
+        p_id_usuario: reservationData.ID_Usuario,
+        p_id_espacio: reservationData.ID_Espacio,
+        p_id_curso: reservationData.ID_Curso,
+        p_fecha_hora_inicio: reservationData.Fecha_Hora_Inicio,
+        p_fecha_hora_fin: reservationData.Fecha_Hora_Fin,
+        p_proposito: reservationData.Proposito,
+      });
 
-    if (error) {
-      return { success: false, error: error.message };
+      if (error) {
+        console.error("Error en RPC:", error);
+        return { success: false, error: error.message };
+      }
+
+      if (user) {
+        const updatedRegistros = await fetchRegistros(user);
+        setRegistros(updatedRegistros);
+      }
+
+      return { success: true };
+    } catch (err) {
+      console.error("Excepción en handleCreateReservation:", err);
+      return {
+        success: false,
+        error: "Error desconocido al crear la reserva",
+      };
     }
-
-    if (user) {
-      const updatedRegistros = await fetchRegistros(user);
-      setRegistros(updatedRegistros);
-    }
-
-    return { success: true };
   };
 
   const handleApproveReservation = async (idRegistro: number) => {
-    const { error } = await supabase
-      .from("Registro_Uso")
-      .update({ Estado_Final: "Confirmado" as RegistroUsoStatus })
-      .eq("Id_Registro", idRegistro);
+    try {
+      const { error } = await supabase
+        .from("registro_uso")
+        .update({ estado_final: "Confirmado" })
+        .eq("id_registro", idRegistro);
 
-    if (error) {
-      toast.error(`Error al aprobar: ${error.message}`);
-      return;
-    }
+      if (error) {
+        toast.error(`Error al aprobar: ${error.message}`);
+        return;
+      }
 
-    if (user) {
-      const updatedRegistros = await fetchRegistros(user);
-      setRegistros(updatedRegistros);
-      toast.success("Reserva Confirmada exitosamente.");
+      if (user) {
+        const updatedRegistros = await fetchRegistros(user);
+        setRegistros(updatedRegistros);
+        toast.success("Reserva Confirmada exitosamente.");
+      }
+    } catch (err) {
+      console.error("Error en handleApproveReservation:", err);
+      toast.error("Error desconocido al aprobar.");
     }
   };
 
@@ -208,41 +199,51 @@ export default function App() {
     idRegistro: number,
     reason: string,
   ) => {
-    const { error } = await supabase
-      .from("Registro_Uso")
-      .update({
-        Estado_Final: "Rechazado" as RegistroUsoStatus,
-        Observaciones: reason,
-      })
-      .eq("Id_Registro", idRegistro);
+    try {
+      const { error } = await supabase
+        .from("registro_uso")
+        .update({
+          estado_final: "Rechazado",
+          observaciones: reason,
+        })
+        .eq("id_registro", idRegistro);
 
-    if (error) {
-      toast.error(`Error al rechazar: ${error.message}`);
-      return;
-    }
+      if (error) {
+        toast.error(`Error al rechazar: ${error.message}`);
+        return;
+      }
 
-    if (user) {
-      const updatedRegistros = await fetchRegistros(user);
-      setRegistros(updatedRegistros);
-      toast.success("Reserva Rechazada exitosamente.");
+      if (user) {
+        const updatedRegistros = await fetchRegistros(user);
+        setRegistros(updatedRegistros);
+        toast.success("Reserva Rechazada exitosamente.");
+      }
+    } catch (err) {
+      console.error("Error en handleRejectReservation:", err);
+      toast.error("Error desconocido al rechazar.");
     }
   };
 
   const handleDeleteReservation = async (idRegistro: number) => {
-    const { error } = await supabase
-      .from("Registro_Uso")
-      .delete()
-      .eq("Id_Registro", idRegistro);
+    try {
+      const { error } = await supabase
+        .from("registro_uso")
+        .delete()
+        .eq("id_registro", idRegistro);
 
-    if (error) {
-      toast.error(`Error al eliminar: ${error.message}`);
-      return;
-    }
+      if (error) {
+        toast.error(`Error al eliminar: ${error.message}`);
+        return;
+      }
 
-    if (user) {
-      const updatedRegistros = await fetchRegistros(user);
-      setRegistros(updatedRegistros);
-      toast.success("Registro eliminado del historial.");
+      if (user) {
+        const updatedRegistros = await fetchRegistros(user);
+        setRegistros(updatedRegistros);
+        toast.success("Registro eliminado del historial.");
+      }
+    } catch (err) {
+      console.error("Error en handleDeleteReservation:", err);
+      toast.error("Error desconocido al eliminar.");
     }
   };
 
